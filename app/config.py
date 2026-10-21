@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     EMBEDDING_MODEL_NAME: str = "text-embedding-3-small"
     LLM_PROVIDER: str = "openai"
-    OPENAI_API_KEY: str = ""
+    OPENAI_API_KEY: str 
 
     model_config = SettingsConfigDict(
         env_file=".env",
