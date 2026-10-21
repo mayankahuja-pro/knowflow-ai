@@ -7,9 +7,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
-    EMBEDDING_MODEL_NAME: str = "all-MiniLM-L6-v2"
-    LLM_PROVIDER: str = "gemini"
-    GEMINI_API_KEY: str = ""
+    EMBEDDING_MODEL_NAME: str = "text-embedding-3-small"
+    LLM_PROVIDER: str = "openai"
+    OPENAI_API_KEY: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",
