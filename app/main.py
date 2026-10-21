@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from app.config import settings
-from app.api import auth, documents, chat
+from app.api import auth, documents, chat, analytics
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -12,6 +12,7 @@ app = FastAPI(
 app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(documents.router, prefix=settings.API_V1_STR)
 app.include_router(chat.router, prefix=settings.API_V1_STR)
+app.include_router(analytics.router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 def root():
