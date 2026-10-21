@@ -1,10 +1,10 @@
 import os
-import shutil
 from fastapi import UploadFile, HTTPException, status
 from sqlalchemy.orm import Session
 import pandas as pd
 from pypdf import PdfReader
 from app.models.document import Document
+from app.services.rag_service import process_and_store_document_chunks
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -20,7 +20,6 @@ def validate_and_save_file(file: UploadFile) -> tuple[str, str, int]:
             detail=f"Unsupported file type '{ext}'. Allowed types: PDF, TXT, CSV."
         )
     
-    # Read file content to check size
     contents = file.file.read()
     file_size = len(contents)
     if file_size > MAX_FILE_SIZE:
@@ -29,13 +28,10 @@ def validate_and_save_file(file: UploadFile) -> tuple[str, str, int]:
             detail="File size exceeds the 10MB limit."
         )
     
-    # Save file locally
     file_path = os.path.join(UPLOAD_DIR, f"{os.urandom(8).hex()}_{file.filename}")
     with open(file_path, "wb") as f:
         f.write(contents)
     
-    # Reset file pointer for future reading if needed
-    file.file.seek(0)
     return file_path, ext, file_size
 
 def extract_text_from_file(file_path: str, file_type: str) -> str:
@@ -61,6 +57,15 @@ def extract_text_from_file(file_path: str, file_type: str) -> str:
     return text
 
 def create_document_record(db: Session, filename: str, file_path: str, file_type: str, file_size: int, owner_id: int) -> Document:
+    # 1. Extract text first
+    text = extract_text_from_file(file_path, file_type)
+    if not text.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Extracted text is empty. Please upload a document with readable text content."
+        )
+
+    # 2. Save document record
     db_doc = Document(
         filename=filename,
         file_path=file_path,
@@ -71,4 +76,17 @@ def create_document_record(db: Session, filename: str, file_path: str, file_type
     db.add(db_doc)
     db.commit()
     db.refresh(db_doc)
+    
+    # 3. Process and store chunks & embeddings
+    try:
+        process_and_store_document_chunks(db, db_doc.id, text)
+    except Exception as e:
+        # Clean up document record if embedding/chunking fails
+        db.delete(db_doc)
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate embeddings and chunks: {str(e)}"
+        )
+    
     return db_doc
